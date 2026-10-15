@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: Resolves up to 100 Sleeper player IDs into compact player records.
 servers:
-  - url: https://your-project.vercel.app
+  - url: https://fantasy-gmassistant-middleware.vercel.app
 paths:
   /players/resolve:
     post:

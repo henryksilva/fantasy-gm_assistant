@@ -1,15 +1,12 @@
 @baseUrl = https://api.sleeper.app/v1
+@resolverBaseUrl = https://fantasy-gmassistant-middleware.vercel.app
 @username = HenrykManente
 @userId = 1050514781800734720
 @season = 2026
-@leagueId = replace_with_league_id
+@leagueId = 1389353930927927296
 
 ### Descobrir a temporada e a semana atuais da NFL
 GET {{baseUrl}}/state/nfl
-Accept: application/json
-
-### Resolver IDs de quarterbacks ativos; prefira filtros para reduzir a resposta
-GET {{baseUrl}}/players/nfl?position=QB&active=true
 Accept: application/json
 
 ### Buscar usuário por username
@@ -35,3 +32,11 @@ Accept: application/json
 ### Listar membros da liga
 GET {{baseUrl}}/league/{{leagueId}}/users
 Accept: application/json
+
+### Resolver somente os player_ids solicitados pelo middleware compacto
+POST {{resolverBaseUrl}}/players/resolve
+Content-Type: application/json
+
+{
+  "player_ids": ["11604", "11618", "12469"]
+}

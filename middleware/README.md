@@ -76,8 +76,8 @@ necessário nesta versão.
 1. Crie um projeto Vercel usando esta pasta `middleware` como Root Directory.
 2. Faça o deploy sem configurar variáveis de ambiente.
 3. O rewrite de `vercel.json` publica a função como `/players/resolve`.
-4. Substitua `https://your-project.vercel.app` pela URL real nos arquivos
-   OpenAPI antes de importar a Action.
+4. A URL de produção configurada nos schemas é
+   `https://fantasy-gmassistant-middleware.vercel.app`.
 
 Para uso geral, `openapi.yaml` fornece OpenAPI 3.0.3. Como o GPT Builder usado
 nesta integração exigiu OpenAPI 3.1.x, importe `openapi-gpt-action.yaml` na
@@ -85,10 +85,10 @@ Action. Configure autenticação como `None`.
 
 ## Exemplos curl
 
-Local ou produção, substitua `BASE_URL` pela origem do deploy:
+O exemplo abaixo usa o deployment atual:
 
 ```bash
-BASE_URL="https://your-project.vercel.app"
+BASE_URL="https://fantasy-gmassistant-middleware.vercel.app"
 
 curl --fail-with-body --silent --show-error \
   -X POST "$BASE_URL/players/resolve" \

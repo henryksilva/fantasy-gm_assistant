@@ -14,7 +14,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "sleeper-openapi.yaml"
 EXPECTED_OPERATIONS = {
     ("/state/nfl", "get"): "getNflState",
-    ("/players/nfl", "get"): "getNflPlayers",
     ("/user/{user_identifier}", "get"): "getSleeperUser",
     ("/user/{user_id}/leagues/nfl/{season}", "get"): "listUserNflLeagues",
     ("/league/{league_id}", "get"): "getLeagueDetails",
@@ -59,8 +58,11 @@ def main() -> None:
         fail("The public Sleeper API must not declare authentication")
     if "parameters" in document.get("components", {}):
         fail("Parameters must be inline for GPT Actions importer compatibility")
-    if "allOf" in SCHEMA_PATH.read_text(encoding="utf-8"):
+    schema_text = SCHEMA_PATH.read_text(encoding="utf-8")
+    if "allOf" in schema_text:
         fail("The MVP schema must not use allOf")
+    if "nullable:" in schema_text:
+        fail("OpenAPI 3.1 must express null through JSON Schema types, not nullable")
 
     paths = document.get("paths", {})
     actual_operations = {
@@ -95,22 +97,6 @@ def main() -> None:
             )
         if "200" not in operation.get("responses", {}):
             fail(f"GET {path} must document a 200 response")
-
-    player_parameters = {
-        parameter["name"]: parameter
-        for parameter in paths["/players/nfl"]["get"].get("parameters", [])
-    }
-    if set(player_parameters) != {"position", "active"}:
-        fail("getNflPlayers must expose only position and active query parameters")
-    for name, parameter in player_parameters.items():
-        if parameter.get("in") != "query" or parameter.get("required") is True:
-            fail(f"Player parameter {name} must be an optional query parameter")
-    if player_parameters["active"].get("schema", {}).get("type") != "boolean":
-        fail("The active query parameter must be boolean")
-
-    player_map = document["components"]["schemas"]["PlayerMap"]
-    if "properties" not in player_map:
-        fail("PlayerMap must declare properties for GPT Actions importer compatibility")
 
     print("OK: YAML syntax and Sleeper MVP OpenAPI invariants are valid.")
 

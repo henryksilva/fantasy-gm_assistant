@@ -4,9 +4,9 @@ info:
   version: 1.0.0
   description: >-
     Read-only access to the public Sleeper API for resolving a user and reading
-    current NFL state, that user's NFL leagues, league details, rosters, league
-    members, and basic player data. This schema intentionally exposes only the
-    operations needed by the first MVP.
+    current NFL state, that user's NFL leagues, league details, rosters, and
+    league members. Player IDs are resolved by the separate compact middleware
+    Action so this schema never returns the complete NFL player map.
 servers:
   - url: https://api.sleeper.app/v1
     description: Public Sleeper API
@@ -16,7 +16,7 @@ tags:
   - name: Leagues
     description: Read league configuration, rosters, and members.
   - name: NFL
-    description: Read current NFL state and resolve Sleeper player IDs.
+    description: Read the current NFL season and week state.
 paths:
   /state/nfl:
     get:
@@ -35,48 +35,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NflState"
-        default:
-          $ref: "#/components/responses/UnexpectedError"
-
-  /players/nfl:
-    get:
-      tags:
-        - NFL
-      operationId: getNflPlayers
-      summary: Get the NFL player ID map
-      description: >-
-        Resolves Sleeper player_id values from rosters into player names and
-        basic player data. Prefer position and active filters whenever possible.
-        The unfiltered response is large (about 5 MB according to Sleeper) and
-        must not be called repeatedly; Sleeper recommends no more than once per
-        day for the complete map.
-      parameters:
-        - name: position
-          in: query
-          required: false
-          description: >-
-            Return only players whose fantasy positions include this value,
-            such as QB, RB, WR, or TE. Prefer this filter when a position is known.
-          schema:
-            type: string
-          example: QB
-        - name: active
-          in: query
-          required: false
-          description: >-
-            Set to true to return only active players. Omit this parameter when
-            inactive players are also needed; values other than true are ignored
-            by Sleeper.
-          schema:
-            type: boolean
-          example: true
-      responses:
-        "200":
-          description: Player objects keyed by Sleeper player_id.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlayerMap"
         default:
           $ref: "#/components/responses/UnexpectedError"
 
@@ -271,91 +229,35 @@ components:
           type: string
           description: Active season to use when listing Sleeper leagues.
         season_type:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Current phase, such as pre, regular, or post.
         leg:
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
           description: Current scoring leg or week used by Sleeper.
         display_week:
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
           description: Week Sleeper currently displays in its interface.
         previous_season:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Previous NFL season year.
         season_start_date:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Regular-season start date when available.
         league_create_season:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Season assigned to newly created leagues.
-
-    PlayerMap:
-      type: object
-      description: Map keyed by Sleeper player_id, including team defense IDs.
-      properties: {}
-      additionalProperties:
-        $ref: "#/components/schemas/Player"
-
-    Player:
-      type: object
-      description: Basic Sleeper player identity and availability data.
-      properties:
-        player_id:
-          type: string
-          nullable: true
-          description: Sleeper player identifier.
-        first_name:
-          type: string
-          nullable: true
-          description: Player first name.
-        last_name:
-          type: string
-          nullable: true
-          description: Player last name.
-        full_name:
-          type: string
-          nullable: true
-          description: Player full name when provided by Sleeper.
-        position:
-          type: string
-          nullable: true
-          description: Primary fantasy position.
-        fantasy_positions:
-          type: array
-          nullable: true
-          description: Fantasy positions for which the player is eligible.
-          items:
-            type: string
-        team:
-          type: string
-          nullable: true
-          description: Current NFL team abbreviation.
-        active:
-          type: boolean
-          nullable: true
-          description: Whether Sleeper currently marks the player active.
-        status:
-          type: string
-          nullable: true
-          description: Current roster or availability status.
-        injury_status:
-          type: string
-          nullable: true
-          description: Current injury designation when present.
-        age:
-          type: integer
-          nullable: true
-          description: Player age when available.
-        years_exp:
-          type: integer
-          nullable: true
-          description: Completed or credited years of NFL experience.
 
     User:
       type: object
@@ -367,16 +269,19 @@ components:
           type: string
           description: Stable numeric Sleeper user identifier.
         username:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Current Sleeper username.
         display_name:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Name shown in the Sleeper interface.
         avatar:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Sleeper avatar identifier, when configured.
 
     League:
@@ -402,43 +307,52 @@ components:
           type: string
           description: Four-digit season year.
         season_type:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Season phase used by the league, usually regular.
         status:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: League lifecycle state, such as pre_draft, drafting, in_season, or complete.
         total_rosters:
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
           description: Number of roster slots in the league.
         avatar:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: League avatar identifier, when configured.
         draft_id:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Identifier of the league's primary draft, when present.
         previous_league_id:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Prior season's league_id, when this league was renewed.
         roster_positions:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Ordered fantasy lineup slots configured for the league.
           items:
             type: string
         settings:
-          type: object
-          nullable: true
+          type:
+            - object
+            - "null"
           description: Sleeper league settings. Keys vary by league and season.
           additionalProperties: true
         scoring_settings:
-          type: object
-          nullable: true
+          type:
+            - object
+            - "null"
           description: Scoring values keyed by Sleeper stat code.
           additionalProperties:
             type: number
@@ -457,47 +371,55 @@ components:
           type: string
           description: League containing this roster.
         owner_id:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Sleeper user_id of the primary owner; can be null for an unclaimed roster.
         co_owners:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Sleeper user_ids of co-owners, when present.
           items:
             type: string
         players:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Sleeper player IDs currently on the roster.
           items:
             type: string
         starters:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Sleeper player IDs currently assigned to starting slots.
           items:
             type: string
         reserve:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Sleeper player IDs in reserve or injured-reserve slots.
           items:
             type: string
         taxi:
-          type: array
-          nullable: true
+          type:
+            - array
+            - "null"
           description: Sleeper player IDs on the taxi squad, when used.
           items:
             type: string
         settings:
-          type: object
-          nullable: true
+          type:
+            - object
+            - "null"
           description: Record, points, waiver, and move totals. Keys vary by league.
           additionalProperties: true
         metadata:
-          type: object
-          nullable: true
+          type:
+            - object
+            - "null"
           description: Optional roster metadata supplied by Sleeper.
           additionalProperties: true
 
@@ -511,23 +433,28 @@ components:
           type: string
           description: Stable Sleeper user ID; matches roster.owner_id.
         username:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Current Sleeper username.
         display_name:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Display name shown in the league.
         avatar:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Sleeper avatar identifier, when configured.
         is_owner:
-          type: boolean
-          nullable: true
+          type:
+            - boolean
+            - "null"
           description: Whether the member is a league commissioner or owner.
         metadata:
-          type: object
-          nullable: true
+          type:
+            - object
+            - "null"
           description: League-specific member data such as team_name; keys can vary.
           additionalProperties: true

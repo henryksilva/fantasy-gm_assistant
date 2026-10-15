@@ -1,24 +1,23 @@
 # Sleeper GPT Action — MVP
 
-Base técnica mínima para conectar um GPT personalizado diretamente à API REST
-pública do Sleeper, sem backend, autenticação, banco de dados ou lógica própria
-de Fantasy Football.
+Base técnica mínima para conectar um GPT personalizado à API REST pública do
+Sleeper e a um middleware serverless compacto para resolução de jogadores. O
+MVP não usa autenticação, banco de dados ou lógica própria de Fantasy Football.
 
 ## Middleware de jogadores
 
-O middleware serverless opcional para resolver `player_id` sem enviar o mapa
+O middleware serverless para resolver `player_id` sem enviar o mapa
 completo à GPT Action está em `middleware/`. Consulte `middleware/README.md`
 para execução, testes, deploy na Vercel e schemas OpenAPI do endpoint
 `POST /players/resolve`.
 
 ## Escopo
 
-O arquivo `sleeper-openapi.yaml` expõe somente sete operações de leitura:
+O arquivo `sleeper-openapi.yaml` expõe somente seis operações leves de leitura:
 
 | `operationId` | Uso |
 | --- | --- |
 | `getNflState` | Descobre a temporada, semana e `league_season` atuais. |
-| `getNflPlayers` | Resolve `player_id` para nomes e dados básicos, com filtros opcionais. |
 | `getSleeperUser` | Resolve um username ou `user_id` e retorna o usuário. |
 | `listUserNflLeagues` | Lista as ligas NFL de um `user_id` em uma temporada. |
 | `getLeagueDetails` | Busca os detalhes de uma liga. |
@@ -30,6 +29,10 @@ Base URL: `https://api.sleeper.app/v1`
 A API do Sleeper é pública e somente leitura. Portanto, esta Action deve ser
 configurada com **Authentication: None**. O schema não declara `securitySchemes`.
 
+O arquivo `middleware/openapi-gpt-action.yaml` expõe separadamente
+`resolveSleeperPlayers`. Essa operação aceita até 100 `player_id` e devolve
+somente os jogadores solicitados, evitando `ResponseTooLargeError`.
+
 ## Arquivos
 
 ```text
@@ -38,17 +41,25 @@ configurada com **Authentication: None**. O schema não declara `securitySchemes
 ├── sleeper-openapi.yaml
 ├── examples/
 │   └── requests.http
-└── tests/
-    └── validate_openapi.py
+├── tests/
+│   └── validate_openapi.py
+└── middleware/
+    ├── openapi-gpt-action.yaml
+    ├── openapi.yaml
+    ├── api/
+    ├── src/
+    └── tests/
 ```
 
 ## Configuração no GPT personalizado
 
-1. Abra a configuração do GPT e adicione uma nova Action.
+1. Abra a configuração do GPT e adicione uma Action para a API pública.
 2. Importe ou cole o conteúdo de `sleeper-openapi.yaml`.
-3. Selecione autenticação `None`.
-4. Confirme que as sete operações foram reconhecidas sem warnings.
-5. Em produção, publique uma URL de política de privacidade apropriada ao seu uso.
+3. Selecione autenticação `None` e confirme as seis operações.
+4. Adicione uma segunda Action para o resolver de jogadores.
+5. Importe `middleware/openapi-gpt-action.yaml` e selecione autenticação `None`.
+6. Confirme a operação `resolveSleeperPlayers`.
+7. Em produção, publique uma URL de política de privacidade apropriada ao uso.
 
 O schema usa OpenAPI 3.1.0, uma única origem HTTPS, IDs como strings para não
 perder precisão e objetos flexíveis apenas onde o Sleeper usa chaves variáveis.
@@ -88,11 +99,12 @@ Fluxo esperado: chamar `getLeagueDetails`, `listLeagueRosters` e
 `roster.owner_id` a `member.user_id`.
 
 ```text
-Resolva os player_ids dos quarterbacks ativos para nomes.
+Resolva estes player_ids do roster para nomes: 11604, 11618 e 12469.
 ```
 
-Fluxo esperado: chamar `getNflPlayers(position="QB", active=true)`. O mapa
-completo sem filtros é grande e não deve ser solicitado repetidamente.
+Fluxo esperado: chamar `resolveSleeperPlayers` com apenas os IDs solicitados. O
+GPT não deve chamar diretamente `GET /players/nfl`, pois a resposta é grande
+demais para uma Action.
 
 ## Testes manuais com curl
 
@@ -107,18 +119,7 @@ curl --fail-with-body --silent --show-error \
 
 Use `league_season` para listar as ligas da temporada ativa.
 
-### 2. Buscar jogadores ativos por posição
-
-```bash
-curl --fail-with-body --silent --show-error \
-  "https://api.sleeper.app/v1/players/nfl?position=QB&active=true"
-```
-
-O endpoint sem filtros retorna um mapa grande, próximo de 5 MB segundo o
-Sleeper, e não deve ser chamado repetidamente. Prefira `position` e `active`
-sempre que possível.
-
-### 3. Buscar o usuário pelo username
+### 2. Buscar o usuário pelo username
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -127,14 +128,14 @@ curl --fail-with-body --silent --show-error \
 
 O campo `user_id` esperado é `1050514781800734720`.
 
-### 4. Buscar o mesmo usuário pelo user_id
+### 3. Buscar o mesmo usuário pelo user_id
 
 ```bash
 curl --fail-with-body --silent --show-error \
   "https://api.sleeper.app/v1/user/1050514781800734720"
 ```
 
-### 5. Listar ligas NFL em uma temporada
+### 4. Listar ligas NFL em uma temporada
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -144,7 +145,7 @@ curl --fail-with-body --silent --show-error \
 Se a resposta for `[]`, tente uma temporada em que o usuário tenha participado,
 por exemplo `2025`. Copie um `league_id` da resposta para os próximos testes.
 
-### 6. Buscar detalhes de uma liga
+### 5. Buscar detalhes de uma liga
 
 ```bash
 LEAGUE_ID="substitua_pelo_league_id"
@@ -152,14 +153,14 @@ curl --fail-with-body --silent --show-error \
   "https://api.sleeper.app/v1/league/${LEAGUE_ID}"
 ```
 
-### 7. Buscar rosters da liga
+### 6. Buscar rosters da liga
 
 ```bash
 curl --fail-with-body --silent --show-error \
   "https://api.sleeper.app/v1/league/${LEAGUE_ID}/rosters"
 ```
 
-### 8. Buscar membros da liga
+### 7. Buscar membros da liga
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -168,6 +169,15 @@ curl --fail-with-body --silent --show-error \
 
 No PowerShell, defina a variável com `$env:LEAGUE_ID = "..."` e use
 `$env:LEAGUE_ID` na URL, ou substitua o ID diretamente.
+
+### 8. Resolver player_ids com payload compacto
+
+```bash
+curl --fail-with-body --silent --show-error \
+  -X POST "https://fantasy-gmassistant-middleware.vercel.app/players/resolve" \
+  -H "Content-Type: application/json" \
+  -d '{"player_ids":["11604","11618","12469"]}'
+```
 
 ## Validação local do schema
 
@@ -187,8 +197,9 @@ compatíveis com o formato `.http`.
 - IDs do Sleeper são strings, evitando perda de precisão em ambientes JavaScript.
 - `settings`, `metadata` e campos semelhantes aceitam chaves adicionais porque o
   Sleeper varia esses objetos entre ligas e temporadas.
-- Não há middleware, cache, persistência, valuations externas ou regra de negócio.
-- O mapa completo de jogadores é grande; use filtros e evite chamadas repetidas.
+- O middleware mantém o mapa de jogadores em memória por instância por 24 horas.
+- Não há persistência, cache distribuído, valuations externas ou regra de negócio.
+- O mapa completo de jogadores não é exposto à GPT Action; use o resolver compacto.
 - O schema não inclui transactions, matchups, drafts, traded picks ou trending players.
 - O Sleeper recomenda manter o uso abaixo de 1.000 chamadas por minuto.
 - A documentação do Sleeper informa uso gratuito para fins não comerciais; uso
