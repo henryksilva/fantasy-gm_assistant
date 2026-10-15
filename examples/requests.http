@@ -1,5 +1,6 @@
 @baseUrl = https://api.sleeper.app/v1
 @resolverBaseUrl = https://fantasy-gmassistant-middleware.vercel.app
+@mcpUrl = https://fantasy-gmassistant-middleware.vercel.app/mcp
 @username = HenrykManente
 @userId = 1050514781800734720
 @season = 2026
@@ -39,4 +40,23 @@ Content-Type: application/json
 
 {
   "player_ids": ["11604", "11618", "12469"]
+}
+
+### Inicializar uma conexão MCP Streamable HTTP
+POST {{mcpUrl}}
+Accept: application/json, text/event-stream
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "manual-http-test",
+      "version": "1.0.0"
+    }
+  }
 }

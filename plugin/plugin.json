@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fantasy-assist-gm-sleeper",
+  "version": "0.1.0",
+  "description": "Consulta ligas, membros, rosters e jogadores da NFL no Sleeper com respostas compactas e somente leitura.",
+  "author": {
+    "name": "Henryk Manente"
+  },
+  "homepage": "https://fantasy-gmassistant-middleware.vercel.app",
+  "repository": "https://github.com/henryksilva/fantasy-gm_assistant",
+  "keywords": ["fantasy-football", "nfl", "sleeper", "dynasty"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fantasy Assist GM - Sleeper",
+        "shortDescription": "Consulte seu roster e ligas NFL no Sleeper.",
+        "longDescription": "Assistente somente leitura para localizar uma conta Sleeper, listar ligas NFL, consultar configurações, relacionar membros e rosters e resolver player_ids com payload compacto.",
+        "developerName": "Henryk Manente",
+        "category": "Lifestyle",
+        "capabilities": ["Read"],
+        "websiteURL": "https://fantasy-gmassistant-middleware.vercel.app",
+        "defaultPrompt": [
+          "Liste minhas ligas NFL da temporada atual.",
+          "Mostre meu roster e agrupe os jogadores por posição."
+        ],
+        "brandColor": "#4F46E5"
+      }
+    }
+  }
+}

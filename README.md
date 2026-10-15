@@ -1,8 +1,26 @@
-# Sleeper GPT Action — MVP
+# Fantasy Assist GM + Sleeper — MVP
 
-Base técnica mínima para conectar um GPT personalizado à API REST pública do
-Sleeper e a um middleware serverless compacto para resolução de jogadores. O
-MVP não usa autenticação, banco de dados ou lógica própria de Fantasy Football.
+Base técnica mínima para conectar o plugin Fantasy Assist GM à API pública do
+Sleeper por um servidor MCP, mantendo os schemas de GPT Actions como legado de
+migração. O MVP não usa autenticação, banco de dados ou valuations externas.
+
+## Integração atual por plugin
+
+O endpoint `https://fantasy-gmassistant-middleware.vercel.app/mcp` implementa
+MCP Streamable HTTP e expõe sete ferramentas somente leitura equivalentes ao
+escopo básico já validado. O pacote combinado de plugin está em `plugin/`:
+
+```text
+plugin/
+├── plugin.json
+├── mcp.json
+└── skills/
+    └── fantasy-assist-gm-sleeper/
+        └── SKILL.md
+```
+
+A skill diferencia explicitamente os recursos disponíveis dos recursos futuros
+e impede associação de `player_id` por suposição.
 
 ## Middleware de jogadores
 
@@ -43,15 +61,30 @@ somente os jogadores solicitados, evitando `ResponseTooLargeError`.
 │   └── requests.http
 ├── tests/
 │   └── validate_openapi.py
-└── middleware/
+├── middleware/
     ├── openapi-gpt-action.yaml
     ├── openapi.yaml
     ├── api/
     ├── src/
     └── tests/
+└── plugin/
+    ├── plugin.json
+    ├── mcp.json
+    └── skills/
 ```
 
+## Configuração do plugin
+
+O pacote em `plugin/` já aponta para o endpoint MCP de produção. Para teste
+privado, registre primeiro o servidor em ChatGPT Plugins como um servidor MCP
+personalizado, usando `No authentication`. A conexão criada pelo ChatGPT pode
+então ser usada na versão combinada do plugin.
+
 ## Configuração no GPT personalizado
+
+> Legado: Custom Actions não são transferidas para plugins. Estes schemas
+> continuam no repositório para referência e para o GPT original enquanto ele
+> permanecer disponível.
 
 1. Abra a configuração do GPT e adicione uma Action para a API pública.
 2. Importe ou cole o conteúdo de `sleeper-openapi.yaml`.
@@ -191,6 +224,19 @@ python tests/validate_openapi.py
 
 O arquivo `examples/requests.http` também pode ser executado por clientes HTTP
 compatíveis com o formato `.http`.
+
+## Validação do servidor MCP
+
+```bash
+cd middleware
+pnpm install
+pnpm run typecheck
+pnpm test
+npx @modelcontextprotocol/inspector@latest
+```
+
+No Inspector, conecte a
+`https://fantasy-gmassistant-middleware.vercel.app/mcp` usando Streamable HTTP.
 
 ## Decisões e limites do MVP
 

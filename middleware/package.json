@@ -7,11 +7,15 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/tests/validation.test.js .test-dist/tests/player-resolver.test.js .test-dist/tests/player-cache.test.js .test-dist/tests/handler.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/tests/validation.test.js .test-dist/tests/player-resolver.test.js .test-dist/tests/player-cache.test.js .test-dist/tests/handler.test.js .test-dist/tests/mcp-server.test.js",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
   }
 }
