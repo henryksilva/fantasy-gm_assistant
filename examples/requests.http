@@ -1,0 +1,37 @@
+@baseUrl = https://api.sleeper.app/v1
+@username = HenrykManente
+@userId = 1050514781800734720
+@season = 2026
+@leagueId = replace_with_league_id
+
+### Descobrir a temporada e a semana atuais da NFL
+GET {{baseUrl}}/state/nfl
+Accept: application/json
+
+### Resolver IDs de quarterbacks ativos; prefira filtros para reduzir a resposta
+GET {{baseUrl}}/players/nfl?position=QB&active=true
+Accept: application/json
+
+### Buscar usuário por username
+GET {{baseUrl}}/user/{{username}}
+Accept: application/json
+
+### Buscar usuário por user_id
+GET {{baseUrl}}/user/{{userId}}
+Accept: application/json
+
+### Listar ligas NFL do usuário na temporada
+GET {{baseUrl}}/user/{{userId}}/leagues/nfl/{{season}}
+Accept: application/json
+
+### Buscar detalhes da liga
+GET {{baseUrl}}/league/{{leagueId}}
+Accept: application/json
+
+### Listar rosters da liga
+GET {{baseUrl}}/league/{{leagueId}}/rosters
+Accept: application/json
+
+### Listar membros da liga
+GET {{baseUrl}}/league/{{leagueId}}/users
+Accept: application/json

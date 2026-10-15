@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: Sleeper Player Resolver API
+  version: 1.0.0
+  description: Resolves up to 100 Sleeper player IDs into compact player records.
+servers:
+  - url: https://your-project.vercel.app
+paths:
+  /players/resolve:
+    post:
+      operationId: resolveSleeperPlayers
+      summary: Resolve Sleeper player IDs
+      description: >-
+        Returns compact data only for the requested player IDs. Duplicate IDs
+        are removed. Use this operation instead of calling Sleeper's complete
+        NFL player map from a model.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolvePlayersRequest"
+      responses:
+        "200":
+          description: Requested players and IDs not present in the Sleeper map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvePlayersResponse"
+        "400":
+          description: Invalid JSON or invalid player_ids.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Request body is too large.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Sleeper player data is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    ResolvePlayersRequest:
+      type: object
+      required:
+        - player_ids
+      properties:
+        player_ids:
+          type: array
+          maxItems: 100
+          description: Sleeper player IDs. Duplicate values are resolved once.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+      additionalProperties: false
+    ResolvePlayersResponse:
+      type: object
+      required:
+        - players
+        - not_found
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompactPlayer"
+        not_found:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    CompactPlayer:
+      type: object
+      required:
+        - player_id
+        - full_name
+        - first_name
+        - last_name
+        - position
+        - fantasy_positions
+        - team
+        - active
+        - status
+        - injury_status
+        - age
+        - years_exp
+      properties:
+        player_id:
+          type: string
+        full_name:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        position:
+          type: string
+          nullable: true
+        fantasy_positions:
+          type: array
+          items:
+            type: string
+        team:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        injury_status:
+          type: string
+          nullable: true
+        age:
+          type: number
+          nullable: true
+        years_exp:
+          type: number
+          nullable: true
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+      additionalProperties: false
