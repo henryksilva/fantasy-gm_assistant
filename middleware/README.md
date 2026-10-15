@@ -17,7 +17,7 @@ O servidor MCP usa Streamable HTTP em:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Ele expõe sete ferramentas somente leitura:
+Ele expõe dezesseis ferramentas somente leitura:
 
 - `get_nfl_state`
 - `get_sleeper_user`
@@ -25,6 +25,15 @@ Ele expõe sete ferramentas somente leitura:
 - `get_league_details`
 - `list_league_rosters`
 - `list_league_members`
+- `list_league_matchups`
+- `list_league_transactions`
+- `list_league_traded_picks`
+- `list_league_drafts`
+- `get_draft_details`
+- `list_draft_picks`
+- `get_league_playoff_bracket`
+- `list_trending_players`
+- `list_available_players`
 - `resolve_sleeper_players`
 
 Request:
@@ -116,7 +125,7 @@ Selecione `Streamable HTTP` e informe:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Valide a inicialização, a lista das sete ferramentas, entradas inválidas e ao
+Valide a inicialização, a lista das dezesseis ferramentas, entradas inválidas e ao
 menos uma chamada real de cada ferramenta.
 
 ## Exemplos curl
@@ -147,12 +156,14 @@ curl --fail-with-body --silent --show-error \
 - `413`: corpo acima de 16 KiB.
 - `502`: mapa de jogadores do Sleeper temporariamente indisponível.
 
-## Limites do MVP
+## Limites atuais
 
 - Sem autenticação.
 - Sem banco de dados ou cache distribuído.
-- Sem trades, valuations, usuários ou outros endpoints Sleeper.
-- O MCP não implementa transactions, matchups, drafts, traded picks, trending
-  players ou operações de escrita.
+- Sem valuations externas, projections, notícias detalhadas ou operações de escrita.
+- Transactions permitem consultar trades e waivers existentes, mas não criar
+  propostas, alterar lineups ou enviar claims.
+- A disponibilidade de jogadores é derivada dos rosters e ordenada pelo
+  `search_rank` do Sleeper; ela não é uma recomendação de valor.
 - A primeira chamada de cada instância pode ser mais lenta por precisar carregar
   e interpretar o mapa completo.

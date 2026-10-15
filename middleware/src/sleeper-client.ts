@@ -105,6 +105,87 @@ const MEMBER_FIELDS = [
   "metadata",
 ] as const;
 
+const MATCHUP_FIELDS = [
+  "matchup_id",
+  "roster_id",
+  "points",
+  "custom_points",
+  "players",
+  "starters",
+  "players_points",
+] as const;
+
+const TRANSACTION_FIELDS = [
+  "transaction_id",
+  "type",
+  "status",
+  "roster_ids",
+  "leg",
+  "created",
+  "status_updated",
+  "creator",
+  "consenter_ids",
+  "adds",
+  "drops",
+  "draft_picks",
+  "waiver_budget",
+  "settings",
+  "metadata",
+] as const;
+
+const TRADED_PICK_FIELDS = [
+  "season",
+  "round",
+  "roster_id",
+  "previous_owner_id",
+  "owner_id",
+] as const;
+
+const DRAFT_FIELDS = [
+  "draft_id",
+  "league_id",
+  "sport",
+  "season",
+  "season_type",
+  "status",
+  "type",
+  "start_time",
+  "created",
+  "last_picked",
+  "last_message_time",
+  "last_message_id",
+  "creators",
+  "draft_order",
+  "slot_to_roster_id",
+  "settings",
+  "metadata",
+] as const;
+
+const DRAFT_PICK_FIELDS = [
+  "draft_id",
+  "player_id",
+  "picked_by",
+  "roster_id",
+  "round",
+  "draft_slot",
+  "pick_no",
+  "is_keeper",
+] as const;
+
+const PLAYOFF_MATCHUP_FIELDS = [
+  "r",
+  "m",
+  "t1",
+  "t2",
+  "t1_from",
+  "t2_from",
+  "w",
+  "l",
+  "p",
+] as const;
+
+const TRENDING_FIELDS = ["player_id", "count"] as const;
+
 export function compactNflState(value: unknown): JsonRecord | null {
   const source = record(value);
   return source ? pick(source, NFL_STATE_FIELDS) : null;
@@ -130,4 +211,45 @@ export function compactRosters(value: unknown): JsonRecord[] {
 
 export function compactMembers(value: unknown): JsonRecord[] {
   return records(value).map((member) => pick(member, MEMBER_FIELDS));
+}
+
+export function compactMatchups(value: unknown): JsonRecord[] {
+  return records(value).map((matchup) => pick(matchup, MATCHUP_FIELDS));
+}
+
+export function compactTransactions(value: unknown): JsonRecord[] {
+  return records(value).map((transaction) =>
+    pick(transaction, TRANSACTION_FIELDS),
+  );
+}
+
+export function compactTradedPicks(value: unknown): JsonRecord[] {
+  return records(value).map((tradedPick) =>
+    pick(tradedPick, TRADED_PICK_FIELDS),
+  );
+}
+
+export function compactDrafts(value: unknown): JsonRecord[] {
+  return records(value).map((draft) => pick(draft, DRAFT_FIELDS));
+}
+
+export function compactDraft(value: unknown): JsonRecord | null {
+  const source = record(value);
+  return source ? pick(source, DRAFT_FIELDS) : null;
+}
+
+export function compactDraftPicks(value: unknown): JsonRecord[] {
+  return records(value).map((draftPick) =>
+    pick(draftPick, DRAFT_PICK_FIELDS),
+  );
+}
+
+export function compactPlayoffBracket(value: unknown): JsonRecord[] {
+  return records(value).map((matchup) =>
+    pick(matchup, PLAYOFF_MATCHUP_FIELDS),
+  );
+}
+
+export function compactTrending(value: unknown): JsonRecord[] {
+  return records(value).map((entry) => pick(entry, TRENDING_FIELDS));
 }

@@ -7,8 +7,10 @@ migração. O MVP não usa autenticação, banco de dados ou valuations externas
 ## Integração atual por plugin
 
 O endpoint `https://fantasy-gmassistant-middleware.vercel.app/mcp` implementa
-MCP Streamable HTTP e expõe sete ferramentas somente leitura equivalentes ao
-escopo básico já validado. O pacote combinado de plugin está em `plugin/`:
+MCP Streamable HTTP e expõe dezesseis ferramentas somente leitura. Além do
+escopo básico, a versão estendida cobre matchups, transactions, picks
+negociadas, drafts, playoffs, trending players e disponibilidade derivada de
+waivers. O pacote combinado de plugin está em `plugin/`:
 
 ```text
 plugin/
@@ -23,6 +25,18 @@ plugin/
 A skill diferencia explicitamente os recursos disponíveis dos recursos futuros
 e impede associação de `player_id` por suposição.
 
+As nove ferramentas estendidas são:
+
+- `list_league_matchups`
+- `list_league_transactions`
+- `list_league_traded_picks`
+- `list_league_drafts`
+- `get_draft_details`
+- `list_draft_picks`
+- `get_league_playoff_bracket`
+- `list_trending_players`
+- `list_available_players`
+
 O catálogo local em `.agents/plugins/marketplace.json` permite descobrir e
 instalar este pacote no ChatGPT desktop durante os testes.
 
@@ -33,7 +47,7 @@ completo à GPT Action está em `middleware/`. Consulte `middleware/README.md`
 para execução, testes, deploy na Vercel e schemas OpenAPI do endpoint
 `POST /players/resolve`.
 
-## Escopo
+## Escopo legado das GPT Actions
 
 O arquivo `sleeper-openapi.yaml` expõe somente seis operações leves de leitura:
 
@@ -243,7 +257,7 @@ npx @modelcontextprotocol/inspector@latest
 No Inspector, conecte a
 `https://fantasy-gmassistant-middleware.vercel.app/mcp` usando Streamable HTTP.
 
-## Decisões e limites do MVP
+## Decisões e limites
 
 - IDs do Sleeper são strings, evitando perda de precisão em ambientes JavaScript.
 - `settings`, `metadata` e campos semelhantes aceitam chaves adicionais porque o
@@ -251,7 +265,11 @@ No Inspector, conecte a
 - O middleware mantém o mapa de jogadores em memória por instância por 24 horas.
 - Não há persistência, cache distribuído, valuations externas ou regra de negócio.
 - O mapa completo de jogadores não é exposto à GPT Action; use o resolver compacto.
-- O schema não inclui transactions, matchups, drafts, traded picks ou trending players.
+- Os schemas de GPT Actions continuam limitados ao MVP legado; os recursos
+  estendidos estão disponíveis no servidor MCP do plugin.
+- Disponibilidade no waiver é derivada dos rosters atuais e não representa
+  ranking ou valuation de mercado.
+- O plugin não oferece projections, valuations externas nem operações de escrita.
 - O Sleeper recomenda manter o uso abaixo de 1.000 chamadas por minuto.
 - A documentação do Sleeper informa uso gratuito para fins não comerciais; uso
   comercial deve ser tratado diretamente com o Sleeper.
