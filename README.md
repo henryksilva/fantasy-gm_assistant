@@ -12,6 +12,7 @@ escopo básico já validado. O pacote combinado de plugin está em `plugin/`:
 
 ```text
 plugin/
+├── .app.json
 ├── plugin.json
 ├── mcp.json
 └── skills/
@@ -21,6 +22,9 @@ plugin/
 
 A skill diferencia explicitamente os recursos disponíveis dos recursos futuros
 e impede associação de `player_id` por suposição.
+
+O catálogo local em `.agents/plugins/marketplace.json` permite descobrir e
+instalar este pacote no ChatGPT desktop durante os testes.
 
 ## Middleware de jogadores
 
@@ -68,6 +72,7 @@ somente os jogadores solicitados, evitando `ResponseTooLargeError`.
     ├── src/
     └── tests/
 └── plugin/
+    ├── .app.json
     ├── plugin.json
     ├── mcp.json
     └── skills/
@@ -75,10 +80,10 @@ somente os jogadores solicitados, evitando `ResponseTooLargeError`.
 
 ## Configuração do plugin
 
-O pacote em `plugin/` já aponta para o endpoint MCP de produção. Para teste
-privado, registre primeiro o servidor em ChatGPT Plugins como um servidor MCP
-personalizado, usando `No authentication`. A conexão criada pelo ChatGPT pode
-então ser usada na versão combinada do plugin.
+O pacote em `plugin/` aponta para o endpoint MCP de produção e para o
+aplicativo MCP registrado no ChatGPT. O vínculo usa `plugin/.app.json`, enquanto
+`plugin/mcp.json` preserva a configuração MCP portátil para clientes
+compatíveis. A conexão não exige autenticação nesta versão.
 
 ## Configuração no GPT personalizado
 

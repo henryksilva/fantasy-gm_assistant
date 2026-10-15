@@ -1,0 +1,20 @@
+{
+  "name": "fantasy-assist-gm-local",
+  "interface": {
+    "displayName": "Fantasy Assist GM"
+  },
+  "plugins": [
+    {
+      "name": "fantasy-assist-gm-sleeper",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Lifestyle"
+    }
+  ]
+}
