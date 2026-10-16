@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "fantasy-assist-gm-sleeper",
-  "version": "0.3.0",
-  "description": "Consulta ligas, rosters, matchups, transações, drafts, picks, playoffs e jogadores da NFL no Sleeper com respostas compactas e somente leitura.",
+  "version": "0.4.0",
+  "description": "Consulta ligas, rosters, matchups, transações, drafts, picks, playoffs e game logs da NFL com respostas compactas e somente leitura.",
   "author": {
     "name": "Henryk Manente"
   },
@@ -15,7 +15,7 @@
       "interface": {
         "displayName": "Fantasy Assist GM - Sleeper",
         "shortDescription": "Ligas e rosters do Sleeper",
-        "longDescription": "Assistente somente leitura para consultar ligas NFL, relacionar membros e rosters, analisar matchups e transações, acompanhar drafts, picks negociadas, playoffs, jogadores em alta e disponibilidade no waiver.",
+        "longDescription": "Assistente somente leitura para consultar ligas NFL, relacionar membros e rosters, analisar matchups e transações, acompanhar drafts, picks negociadas, playoffs, jogadores em alta, disponibilidade no waiver, médias históricas e tendências de utilização.",
         "developerName": "Henryk Manente",
         "category": "Lifestyle",
         "capabilities": ["Read"],

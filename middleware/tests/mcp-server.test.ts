@@ -148,6 +148,7 @@ const dependencies: McpDependencies = {
           name: "Dynasty Apoiadores 10 Jardas",
           sport: "nfl",
           season: "2026",
+          scoring_settings: { rec: 0.2, rec_yd: 0.1, rec_td: 6 },
           extra: "drop",
         };
       }
@@ -183,6 +184,48 @@ const dependencies: McpDependencies = {
       };
     },
   },
+  nflverseSeasonProvider: {
+    async get(season: string) {
+      assert.equal(season, "2026");
+      return {
+        stats: [
+          {
+            source_player_id: "00-test",
+            player_name: "Available Receiver",
+            position: "WR",
+            season: "2026",
+            week: 6,
+            season_type: "REG",
+            game_id: "2026_06_TST_EXM",
+            team: "TST",
+            opponent_team: "EXM",
+            metrics: {
+              receptions: 5,
+              targets: 7,
+              receiving_yards: 80,
+              receiving_tds: 1,
+            },
+          },
+        ],
+        snaps: [
+          {
+            player_name: "Available Receiver",
+            position: "WR",
+            season: "2026",
+            week: 6,
+            team: "TST",
+            opponent_team: "EXM",
+            offense_snaps: 48,
+            offense_pct: 0.75,
+            defense_snaps: 0,
+            defense_pct: 0,
+            special_teams_snaps: 2,
+            special_teams_pct: 0.1,
+          },
+        ],
+      };
+    },
+  },
 };
 
 async function connectedClient() {
@@ -194,7 +237,7 @@ async function connectedClient() {
   return { client, server };
 }
 
-test("advertises exactly the sixteen read-only tools", async () => {
+test("advertises exactly the seventeen read-only tools", async () => {
   const { client, server } = await connectedClient();
   try {
     const response = await client.listTools();
@@ -216,6 +259,7 @@ test("advertises exactly the sixteen read-only tools", async () => {
         "get_league_playoff_bracket",
         "list_trending_players",
         "list_available_players",
+        "get_player_game_logs",
         "resolve_sleeper_players",
       ],
     );
@@ -315,6 +359,41 @@ test("calls expanded league, draft, trend, and availability tools", async () => 
       ).map((player) => player.player_id),
       ["20000", "30000"],
     );
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("returns roster-independent game logs with league scoring and snaps", async () => {
+  const { client, server } = await connectedClient();
+  try {
+    const response = await client.callTool({
+      name: "get_player_game_logs",
+      arguments: {
+        league_id: "1389353930927927296",
+        player_ids: ["20000"],
+        season: "2026",
+        through_week: 6,
+        game_log_limit: 5,
+      },
+    });
+    const result = response.structuredContent as {
+      data: Array<{
+        currently_available: boolean;
+        averages: { season: number };
+        game_logs: Array<{ fantasy_points: number; offense_snaps: number }>;
+      }>;
+      unresolved: unknown[];
+      unsupported_scoring_keys: string[];
+    };
+    assert.equal(result.data.length, 1);
+    assert.equal(result.data[0]?.currently_available, true);
+    assert.equal(result.data[0]?.averages.season, 15);
+    assert.equal(result.data[0]?.game_logs[0]?.fantasy_points, 15);
+    assert.equal(result.data[0]?.game_logs[0]?.offense_snaps, 48);
+    assert.deepEqual(result.unresolved, []);
+    assert.deepEqual(result.unsupported_scoring_keys, []);
   } finally {
     await client.close();
     await server.close();

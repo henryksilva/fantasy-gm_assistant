@@ -1,6 +1,6 @@
 ---
 name: fantasy-assist-gm-sleeper
-description: Consult and summarize the user's Sleeper NFL leagues, rosters, matchups, transactions, drafts, traded picks, playoffs, trending players, available players, and compact player data. Use for Sleeper roster, weekly, draft, and waiver questions; do not use for market valuations, projections, news, or write actions.
+description: Consult and summarize the user's Sleeper NFL leagues, rosters, matchups, transactions, drafts, traded picks, playoffs, trending players, available players, weekly game logs, league-scored averages, usage, snaps, and compact player data. Use for Sleeper roster, weekly, draft, and waiver questions; do not use for market valuations, projections, news, or write actions.
 ---
 
 # Fantasy Assist GM - Sleeper
@@ -40,13 +40,23 @@ The default account is:
   indicate platform activity, not player value or availability in the league.
 - Use `list_available_players` to derive current unrostered players. Prefer a
   position or name filter and a small limit. Availability is not a valuation.
+- Use `get_player_game_logs` after identifying up to 25 candidate player IDs.
+  Pass the league, season, and explicit current week. Compare the returned
+  season, last-3, and last-5 averages with carries, targets, tackles, and snap
+  trends. The data is roster-independent, so it also covers current free agents.
+- Treat `unsupported_scoring_keys` as a material limitation. Never describe a
+  calculated score as complete when this list is non-empty. Report `unresolved`
+  mappings instead of associating players by inference.
+- nflverse game logs can lag recently completed games. Do not treat a missing
+  current-week row as a zero until the source has updated.
 
 ## Current boundaries
 
 The available integration covers current NFL state, Sleeper users, leagues,
 members, rosters, weekly matchups and transactions, traded picks, drafts and
 draft selections, playoff brackets, trending players, derived waiver
-availability, and player identity/basic status.
+availability, player identity/basic status, roster-independent weekly game
+logs, league-scored averages, usage metrics, and snap counts.
 
 It does not provide market valuations, projections, detailed news, or write
 operations such as proposing trades, changing lineups, or submitting waiver

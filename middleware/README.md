@@ -17,7 +17,7 @@ O servidor MCP usa Streamable HTTP em:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Ele expõe dezesseis ferramentas somente leitura:
+Ele expõe dezessete ferramentas somente leitura:
 
 - `get_nfl_state`
 - `get_sleeper_user`
@@ -34,6 +34,7 @@ Ele expõe dezesseis ferramentas somente leitura:
 - `get_league_playoff_bracket`
 - `list_trending_players`
 - `list_available_players`
+- `get_player_game_logs`
 - `resolve_sleeper_players`
 
 Request:
@@ -83,6 +84,27 @@ start precisa carregar o mapa novamente; não existe garantia de um único cache
 global entre regiões. Esse é um compromisso consciente do MVP para evitar
 banco, KV ou outro serviço externo.
 
+`get_player_game_logs` carrega os arquivos semanais `stats_player` e
+`snap_counts` do nflverse por temporada e os mantém em memória por 6 horas. A
+ferramenta aceita até 25 `player_ids`, calcula a pontuação com
+`scoring_settings` da liga, retorna médias da temporada, dos últimos três e dos
+últimos cinco jogos e inclui utilização ofensiva ou IDP e snap counts. O
+mapeamento é conservador: IDs sem correspondência única são retornados em
+`unresolved`, e regras não calculáveis aparecem em
+`unsupported_scoring_keys`.
+
+Exemplo de argumentos MCP:
+
+```json
+{
+  "league_id": "1389353930927927296",
+  "player_ids": ["11742", "10888", "12567"],
+  "season": "2026",
+  "through_week": 6,
+  "game_log_limit": 5
+}
+```
+
 ## Desenvolvimento
 
 Requisitos: Node.js 20 ou superior.
@@ -125,7 +147,7 @@ Selecione `Streamable HTTP` e informe:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Valide a inicialização, a lista das dezesseis ferramentas, entradas inválidas e ao
+Valide a inicialização, a lista das dezessete ferramentas, entradas inválidas e ao
 menos uma chamada real de cada ferramenta.
 
 ## Exemplos curl
@@ -165,5 +187,8 @@ curl --fail-with-body --silent --show-error \
   propostas, alterar lineups ou enviar claims.
 - A disponibilidade de jogadores é derivada dos rosters e ordenada pelo
   `search_rank` do Sleeper; ela não é uma recomendação de valor.
+- Game logs e snaps vêm do nflverse e podem ter atraso após o encerramento das
+  partidas. A resposta identifica a fonte e qualquer regra de pontuação sem
+  cobertura.
 - A primeira chamada de cada instância pode ser mais lenta por precisar carregar
-  e interpretar o mapa completo.
+  e interpretar o mapa completo e os arquivos da temporada.

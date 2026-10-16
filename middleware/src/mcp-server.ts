@@ -3,6 +3,11 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import * as z from "zod/v4";
 
 import { playerMapCache } from "./player-cache.js";
+import {
+  nflverseSeasonCache,
+  type NflverseSeasonProvider,
+} from "./nflverse-client.js";
+import { buildPlayerGameLogs } from "./player-game-logs.js";
 import { resolvePlayers } from "./player-resolver.js";
 import {
   compactDraft,
@@ -205,14 +210,72 @@ const trendingPlayerSchema = z.object({
   player: compactPlayerSchema.nullable(),
 });
 
+const playerWeekLogSchema = z.object({
+  week: z.number(),
+  game_id: z.string().nullable(),
+  team: z.string().nullable(),
+  opponent: z.string().nullable(),
+  fantasy_points: z.number(),
+  carries: z.number(),
+  targets: z.number(),
+  receptions: z.number(),
+  passing_yards: z.number(),
+  rushing_yards: z.number(),
+  receiving_yards: z.number(),
+  total_touches: z.number(),
+  tackles_solo: z.number(),
+  tackles_assists: z.number(),
+  tackles_for_loss: z.number(),
+  sacks: z.number(),
+  qb_hits: z.number(),
+  interceptions: z.number(),
+  passes_defended: z.number(),
+  forced_fumbles: z.number(),
+  fumble_recoveries: z.number(),
+  offense_snaps: z.number().nullable(),
+  offense_snap_pct: z.number().nullable(),
+  defense_snaps: z.number().nullable(),
+  defense_snap_pct: z.number().nullable(),
+  special_teams_snaps: z.number().nullable(),
+  special_teams_snap_pct: z.number().nullable(),
+});
+
+const playerGameLogSummarySchema = z.object({
+  player_id: z.string(),
+  full_name: z.string(),
+  position: z.string().nullable(),
+  team: z.string().nullable(),
+  currently_available: z.boolean(),
+  mapping_method: z.enum([
+    "sleeper_gsis_id",
+    "exact_name_position",
+    "exact_name_position_team",
+  ]),
+  source_player_id: z.string().nullable(),
+  games_played: z.number(),
+  averages: z.object({
+    season: z.number().nullable(),
+    last_3: z.number().nullable(),
+    last_5: z.number().nullable(),
+  }),
+  game_logs: z.array(playerWeekLogSchema),
+});
+
+const unresolvedPlayerSchema = z.object({
+  player_id: z.string(),
+  reason: z.string(),
+});
+
 export interface McpDependencies {
   sleeper: SleeperClient;
   playerMapProvider: PlayerMapProvider;
+  nflverseSeasonProvider: NflverseSeasonProvider;
 }
 
 const defaultDependencies: McpDependencies = {
   sleeper: sleeperClient,
   playerMapProvider: playerMapCache,
+  nflverseSeasonProvider: nflverseSeasonCache,
 };
 
 function result(data: unknown, message: string) {
@@ -291,10 +354,10 @@ export function createSleeperMcpServer(
   dependencies: McpDependencies = defaultDependencies,
 ): McpServer {
   const server = new McpServer(
-    { name: "fantasy-assist-gm-sleeper", version: "1.1.0" },
+    { name: "fantasy-assist-gm-sleeper", version: "1.2.0" },
     {
       instructions:
-        "Read-only Sleeper NFL tools. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs with the resolver. Waiver availability is derived from current rosters and is not a market valuation. Never infer player identities or trade values.",
+        "Read-only Sleeper NFL tools with nflverse weekly player stats. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs before requesting game logs. Waiver availability is derived from current rosters and is not a market valuation. Never infer player identities or trade values.",
       maxToolInputElements: 120,
     },
   );
@@ -754,6 +817,94 @@ export function createSleeperMcpServer(
           .map(([playerId]) => playerId);
         const data = resolvePlayers(availableIds, playerMap).players;
         return result(data, `Found ${data.length} available player(s).`);
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_player_game_logs",
+    {
+      title: "Get player game logs and league scoring",
+      description:
+        "Get roster-independent weekly NFL game logs for up to 25 Sleeper player_ids, calculate fantasy points with the league scoring settings, and return season, last-3, and last-5 averages plus usage and snap trends. Use after list_available_players or resolve_sleeper_players. Mapping is conservative and unresolved IDs are reported instead of guessed. nflverse data can lag completed games and unsupported nonzero scoring rules are listed explicitly.",
+      inputSchema: {
+        league_id: numericId.describe(
+          "Numeric Sleeper league_id whose scoring settings and current rosters should be used.",
+        ),
+        player_ids: z
+          .array(z.string().trim().min(1).max(64))
+          .min(1)
+          .max(25)
+          .describe("One to 25 Sleeper player_ids to evaluate."),
+        season: season.describe("Four-digit NFL season, such as 2026."),
+        through_week: week.describe(
+          "Include regular-season games through this NFL week.",
+        ),
+        game_log_limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(8)
+          .default(5)
+          .describe("Most recent game logs to return per player; averages still use all games through the requested week."),
+      },
+      outputSchema: {
+        data: z.array(playerGameLogSummarySchema),
+        unresolved: z.array(unresolvedPlayerSchema),
+        unsupported_scoring_keys: z.array(z.string()),
+        source: z.object({
+          provider: z.literal("nflverse"),
+          stats_url: z.string(),
+          snaps_url: z.string(),
+        }),
+      },
+      annotations: readOnlyAnnotations,
+    },
+    async ({ league_id, player_ids, season: requestedSeason, through_week, game_log_limit }) => {
+      try {
+        const [rawLeague, rawRosters, playerMap, seasonData] = await Promise.all([
+          dependencies.sleeper.get(`/league/${encodeURIComponent(league_id)}`),
+          dependencies.sleeper.get(`/league/${encodeURIComponent(league_id)}/rosters`),
+          dependencies.playerMapProvider.get(),
+          dependencies.nflverseSeasonProvider.get(requestedSeason),
+        ]);
+        const league = compactLeague(rawLeague);
+        if (!league) throw new Error("Sleeper league not found.");
+        const scoringSettings =
+          typeof league.scoring_settings === "object" &&
+          league.scoring_settings !== null &&
+          !Array.isArray(league.scoring_settings)
+            ? (league.scoring_settings as Record<string, unknown>)
+            : {};
+        const rosteredPlayerIds = new Set<string>();
+        for (const roster of compactRosters(rawRosters)) {
+          if (!Array.isArray(roster.players)) continue;
+          for (const playerId of roster.players) {
+            if (typeof playerId === "string") rosteredPlayerIds.add(playerId);
+          }
+        }
+
+        const response = buildPlayerGameLogs({
+          playerIds: player_ids,
+          playerMap,
+          seasonData,
+          season: requestedSeason,
+          throughWeek: through_week,
+          gameLogLimit: game_log_limit,
+          scoringSettings,
+          rosteredPlayerIds,
+        });
+        return {
+          structuredContent: response,
+          content: [
+            {
+              type: "text" as const,
+              text: `Built game logs for ${response.data.length} player(s); ${response.unresolved.length} unresolved; ${response.unsupported_scoring_keys.length} unsupported scoring rule(s).`,
+            },
+          ],
+        };
       } catch (error) {
         return toolError(error);
       }
