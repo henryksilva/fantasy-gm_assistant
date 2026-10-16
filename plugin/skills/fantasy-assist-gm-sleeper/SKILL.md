@@ -1,6 +1,6 @@
 ---
 name: fantasy-assist-gm-sleeper
-description: Consult and summarize the user's Sleeper NFL leagues, rosters, matchups, transactions, drafts, traded picks, playoffs, trending players, available players, weekly game logs, league-scored averages, usage, snaps, and compact player data. Use for Sleeper roster, weekly, draft, and waiver questions; do not use for market valuations, projections, news, or write actions.
+description: Consult and summarize the user's Sleeper NFL leagues, rosters, matchups, transactions, drafts, traded picks, playoffs, trending players, available players, weekly game logs, league-scored averages, usage, snaps, transparent waiver rankings, and compact player data. Use for Sleeper roster, weekly, draft, and waiver questions; do not use for market valuations, projections, news, or write actions.
 ---
 
 # Fantasy Assist GM - Sleeper
@@ -47,6 +47,16 @@ The default account is:
 - Treat `unsupported_scoring_keys` as a material limitation. Never describe a
   calculated score as complete when this list is non-empty. Report `unresolved`
   mappings instead of associating players by inference.
+- Use `analyze_waiver_candidates` when the user wants a consolidated free-agent
+  ranking or a comparison with the bottom of their roster. Pass the stable
+  `owner_id`, league, season, and week. Prefer one position group at a time when
+  positional comparability matters.
+- Explain that `waiver_score` is relative to the players evaluated in that
+  request. It combines league-scored production, recent usage, trend, and
+  sample reliability; it is not a Dynasty valuation or future projection.
+- Treat `roster_comparisons` as production/usage baselines, not automatic cut
+  recommendations. The tool protects starters, reserve, and taxi players, but
+  it cannot measure market value, rookie upside, or a manager's strategic plan.
 - nflverse game logs can lag recently completed games. Do not treat a missing
   current-week row as a zero until the source has updated.
 
@@ -56,7 +66,8 @@ The available integration covers current NFL state, Sleeper users, leagues,
 members, rosters, weekly matchups and transactions, traded picks, drafts and
 draft selections, playoff brackets, trending players, derived waiver
 availability, player identity/basic status, roster-independent weekly game
-logs, league-scored averages, usage metrics, and snap counts.
+logs, league-scored averages, usage metrics, snap counts, request-relative
+waiver rankings, and protected roster-depth comparisons.
 
 It does not provide market valuations, projections, detailed news, or write
 operations such as proposing trades, changing lineups, or submitting waiver

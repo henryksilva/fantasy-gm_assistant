@@ -17,7 +17,7 @@ O servidor MCP usa Streamable HTTP em:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Ele expõe dezessete ferramentas somente leitura:
+Ele expõe dezoito ferramentas somente leitura:
 
 - `get_nfl_state`
 - `get_sleeper_user`
@@ -34,6 +34,7 @@ Ele expõe dezessete ferramentas somente leitura:
 - `get_league_playoff_bracket`
 - `list_trending_players`
 - `list_available_players`
+- `analyze_waiver_candidates`
 - `get_player_game_logs`
 - `resolve_sleeper_players`
 
@@ -105,6 +106,27 @@ Exemplo de argumentos MCP:
 }
 ```
 
+`analyze_waiver_candidates` consolida o fluxo de waiver sem uma fonte nova de
+valuation. A ferramenta deriva os jogadores livres, aplica a pontuação da liga,
+combina produção recente, utilização, tendência e confiabilidade da amostra e
+compara o resultado com jogadores não titulares do roster informado. Titulares,
+reserve e Taxi Squad ficam fora do conjunto de comparação. A nota é relativa ao
+grupo avaliado na chamada e não representa valor Dynasty, projeção futura ou
+uma recomendação automática de corte.
+
+```json
+{
+  "league_id": "1389353930927927296",
+  "owner_id": "1050514781800734720",
+  "season": "2026",
+  "through_week": 6,
+  "positions": ["WR"],
+  "candidate_pool_size": 25,
+  "candidate_limit": 10,
+  "comparison_limit": 5
+}
+```
+
 ## Desenvolvimento
 
 Requisitos: Node.js 20 ou superior.
@@ -147,7 +169,7 @@ Selecione `Streamable HTTP` e informe:
 https://fantasy-gmassistant-middleware.vercel.app/mcp
 ```
 
-Valide a inicialização, a lista das dezessete ferramentas, entradas inválidas e ao
+Valide a inicialização, a lista das dezoito ferramentas, entradas inválidas e ao
 menos uma chamada real de cada ferramenta.
 
 ## Exemplos curl

@@ -190,6 +190,23 @@ const dependencies: McpDependencies = {
       return {
         stats: [
           {
+            source_player_id: "00-roster",
+            player_name: "Example Player",
+            position: "WR",
+            season: "2026",
+            week: 6,
+            season_type: "REG",
+            game_id: "2026_06_LOW_EXM",
+            team: "LOW",
+            opponent_team: "EXM",
+            metrics: {
+              receptions: 1,
+              targets: 2,
+              receiving_yards: 10,
+              receiving_tds: 0,
+            },
+          },
+          {
             source_player_id: "00-test",
             player_name: "Available Receiver",
             position: "WR",
@@ -208,6 +225,20 @@ const dependencies: McpDependencies = {
           },
         ],
         snaps: [
+          {
+            player_name: "Example Player",
+            position: "WR",
+            season: "2026",
+            week: 6,
+            team: "LOW",
+            opponent_team: "EXM",
+            offense_snaps: 12,
+            offense_pct: 0.2,
+            defense_snaps: 0,
+            defense_pct: 0,
+            special_teams_snaps: 0,
+            special_teams_pct: 0,
+          },
           {
             player_name: "Available Receiver",
             position: "WR",
@@ -237,7 +268,7 @@ async function connectedClient() {
   return { client, server };
 }
 
-test("advertises exactly the seventeen read-only tools", async () => {
+test("advertises exactly the eighteen read-only tools", async () => {
   const { client, server } = await connectedClient();
   try {
     const response = await client.listTools();
@@ -259,6 +290,7 @@ test("advertises exactly the seventeen read-only tools", async () => {
         "get_league_playoff_bracket",
         "list_trending_players",
         "list_available_players",
+        "analyze_waiver_candidates",
         "get_player_game_logs",
         "resolve_sleeper_players",
       ],
@@ -394,6 +426,42 @@ test("returns roster-independent game logs with league scoring and snaps", async
     assert.equal(result.data[0]?.game_logs[0]?.offense_snaps, 48);
     assert.deepEqual(result.unresolved, []);
     assert.deepEqual(result.unsupported_scoring_keys, []);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("builds a compact waiver ranking with roster comparisons", async () => {
+  const { client, server } = await connectedClient();
+  try {
+    const response = await client.callTool({
+      name: "analyze_waiver_candidates",
+      arguments: {
+        league_id: "1389353930927927296",
+        owner_id: "1050514781800734720",
+        season: "2026",
+        through_week: 6,
+        positions: ["WR"],
+        candidate_pool_size: 5,
+        candidate_limit: 2,
+        comparison_limit: 2,
+      },
+    });
+    const result = response.structuredContent as {
+      candidates: Array<{ player_id: string; rank: number; waiver_score: number }>;
+      roster_comparisons: Array<{ player_id: string; rank: number }>;
+      unresolved: Array<{ player_id: string }>;
+      methodology: { weights: { production: number } };
+    };
+    assert.deepEqual(result.candidates.map((entry) => entry.player_id), ["20000"]);
+    assert.equal(result.candidates[0]?.rank, 1);
+    assert.deepEqual(
+      result.roster_comparisons.map((entry) => entry.player_id),
+      ["11604"],
+    );
+    assert.deepEqual(result.unresolved.map((entry) => entry.player_id), ["30000"]);
+    assert.equal(result.methodology.weights.production, 0.55);
   } finally {
     await client.close();
     await server.close();

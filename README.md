@@ -7,7 +7,7 @@ migração. O MVP não usa autenticação, banco de dados ou valuations externas
 ## Integração atual por plugin
 
 O endpoint `https://fantasy-gmassistant-middleware.vercel.app/mcp` implementa
-MCP Streamable HTTP e expõe dezessete ferramentas somente leitura. Além do
+MCP Streamable HTTP e expõe dezoito ferramentas somente leitura. Além do
 escopo básico, a versão estendida cobre matchups, transactions, picks
 negociadas, drafts, playoffs, trending players e disponibilidade derivada de
 waivers. A ferramenta de game logs usa dados semanais do nflverse para calcular
@@ -28,7 +28,7 @@ plugin/
 A skill diferencia explicitamente os recursos disponíveis dos recursos futuros
 e impede associação de `player_id` por suposição.
 
-As dez ferramentas estendidas são:
+As onze ferramentas estendidas são:
 
 - `list_league_matchups`
 - `list_league_transactions`
@@ -39,6 +39,7 @@ As dez ferramentas estendidas são:
 - `get_league_playoff_bracket`
 - `list_trending_players`
 - `list_available_players`
+- `analyze_waiver_candidates`
 - `get_player_game_logs`
 
 O catálogo local em `.agents/plugins/marketplace.json` permite descobrir e
@@ -273,8 +274,11 @@ No Inspector, conecte a
 - O mapa completo de jogadores não é exposto à GPT Action; use o resolver compacto.
 - Os schemas de GPT Actions continuam limitados ao MVP legado; os recursos
   estendidos estão disponíveis no servidor MCP do plugin.
-- Disponibilidade no waiver é derivada dos rosters atuais e não representa
-  ranking ou valuation de mercado.
+- Disponibilidade no waiver é derivada dos rosters atuais. O ranking agregado é
+  relativo ao conjunto avaliado e não representa valuation de mercado.
+- `analyze_waiver_candidates` compara free agents com jogadores não titulares,
+  protegendo starters, reserve e Taxi Squad. A comparação é estatística e não
+  deve ser apresentada como recomendação automática de corte.
 - `get_player_game_logs` limita a consulta a 25 jogadores, retorna no máximo oito
   game logs por jogador e informa regras de pontuação não suportadas em vez de
   apresentar precisão falsa.

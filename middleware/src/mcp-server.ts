@@ -29,6 +29,12 @@ import {
 } from "./sleeper-client.js";
 import type { PlayerMapProvider, SleeperPlayer } from "./types.js";
 import { validatePlayerIds } from "./validation.js";
+import {
+  rankWaiverPlayers,
+  selectAvailablePlayerIds,
+  selectRosterComparisonIds,
+  WAIVER_SCORE_WEIGHTS,
+} from "./waiver-analysis.js";
 
 const numericId = z
   .string()
@@ -266,6 +272,28 @@ const unresolvedPlayerSchema = z.object({
   reason: z.string(),
 });
 
+const rankedWaiverPlayerSchema = z.object({
+  rank: z.number(),
+  player_id: z.string(),
+  full_name: z.string(),
+  position: z.string().nullable(),
+  team: z.string().nullable(),
+  games_played: z.number(),
+  season_average: z.number().nullable(),
+  last_3_average: z.number().nullable(),
+  last_5_average: z.number().nullable(),
+  recent_snap_pct: z.number().nullable(),
+  recent_opportunities: z.number(),
+  waiver_score: z.number(),
+  score_components: z.object({
+    production: z.number(),
+    usage: z.number(),
+    trend: z.number(),
+    reliability: z.number(),
+  }),
+  signals: z.array(z.string()),
+});
+
 export interface McpDependencies {
   sleeper: SleeperClient;
   playerMapProvider: PlayerMapProvider;
@@ -305,6 +333,12 @@ function playerSearchRank(player: SleeperPlayer): number {
   return typeof rank === "number" && Number.isFinite(rank)
     ? rank
     : Number.MAX_SAFE_INTEGER;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : [];
 }
 
 function playerMatchesAvailabilityFilters(
@@ -354,10 +388,10 @@ export function createSleeperMcpServer(
   dependencies: McpDependencies = defaultDependencies,
 ): McpServer {
   const server = new McpServer(
-    { name: "fantasy-assist-gm-sleeper", version: "1.2.0" },
+    { name: "fantasy-assist-gm-sleeper", version: "1.3.0" },
     {
       instructions:
-        "Read-only Sleeper NFL tools with nflverse weekly player stats. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs before requesting game logs. Waiver availability is derived from current rosters and is not a market valuation. Never infer player identities or trade values.",
+        "Read-only Sleeper NFL tools with nflverse weekly player stats. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs before requesting game logs. Use analyze_waiver_candidates for a transparent relative ranking based on league scoring, recent production, usage, and reliability. Waiver analysis is not a market valuation or future projection. Never infer player identities or trade values.",
       maxToolInputElements: 120,
     },
   );
@@ -817,6 +851,198 @@ export function createSleeperMcpServer(
           .map(([playerId]) => playerId);
         const data = resolvePlayers(availableIds, playerMap).players;
         return result(data, `Found ${data.length} available player(s).`);
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "analyze_waiver_candidates",
+    {
+      title: "Rank waiver candidates and compare roster depth",
+      description:
+        "Build a compact waiver report without external valuations. It derives current free agents, calculates league-scored season/last-3/last-5 production, recent usage and snaps, ranks candidates relative to the evaluated pool, and compares them with non-starting roster players. Starters, reserve, and taxi players are protected from the comparison set. The score is transparent and request-relative; it is not a Dynasty market value, projection, or automatic cut recommendation.",
+      inputSchema: {
+        league_id: numericId.describe("Numeric Sleeper league_id."),
+        owner_id: numericId.describe(
+          "Stable Sleeper user_id used to identify the roster to compare.",
+        ),
+        season: season.describe("Four-digit NFL season, such as 2026."),
+        through_week: week.describe(
+          "Include regular-season games through this NFL week.",
+        ),
+        positions: z
+          .array(z.string().trim().min(1).max(16))
+          .max(8)
+          .default([])
+          .describe(
+            "Optional positions such as RB, WR, TE, LB, DL, or DB. Empty evaluates all positions.",
+          ),
+        candidate_pool_size: z
+          .number()
+          .int()
+          .min(5)
+          .max(25)
+          .default(25)
+          .describe(
+            "Number of active free agents prefiltered by Sleeper search rank before statistical ranking.",
+          ),
+        candidate_limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(15)
+          .default(10)
+          .describe("Maximum ranked waiver candidates returned."),
+        comparison_limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(15)
+          .default(5)
+          .describe(
+            "Maximum non-starting, non-reserve, non-taxi roster players returned for production comparison.",
+          ),
+      },
+      outputSchema: {
+        candidates: z.array(rankedWaiverPlayerSchema),
+        roster_comparisons: z.array(rankedWaiverPlayerSchema),
+        unresolved: z.array(unresolvedPlayerSchema),
+        unsupported_scoring_keys: z.array(z.string()),
+        methodology: z.object({
+          scope: z.string(),
+          candidate_prefilter: z.string(),
+          protected_roster_groups: z.array(z.string()),
+          weights: z.object({
+            production: z.number(),
+            usage: z.number(),
+            trend: z.number(),
+            reliability: z.number(),
+          }),
+          limitations: z.array(z.string()),
+        }),
+        source: z.object({
+          provider: z.literal("nflverse"),
+          stats_url: z.string(),
+          snaps_url: z.string(),
+        }),
+      },
+      annotations: readOnlyAnnotations,
+    },
+    async ({
+      league_id,
+      owner_id,
+      season: requestedSeason,
+      through_week,
+      positions,
+      candidate_pool_size,
+      candidate_limit,
+      comparison_limit,
+    }) => {
+      try {
+        const [rawLeague, rawRosters, playerMap, seasonData] = await Promise.all([
+          dependencies.sleeper.get(`/league/${encodeURIComponent(league_id)}`),
+          dependencies.sleeper.get(
+            `/league/${encodeURIComponent(league_id)}/rosters`,
+          ),
+          dependencies.playerMapProvider.get(),
+          dependencies.nflverseSeasonProvider.get(requestedSeason),
+        ]);
+        const league = compactLeague(rawLeague);
+        if (!league) throw new Error("Sleeper league not found.");
+        const rosters = compactRosters(rawRosters);
+        const targetRoster = rosters.find(
+          (roster) => roster.owner_id === owner_id,
+        );
+        if (!targetRoster) {
+          throw new Error("No roster in this league matches the supplied owner_id.");
+        }
+        const scoringSettings =
+          typeof league.scoring_settings === "object" &&
+          league.scoring_settings !== null &&
+          !Array.isArray(league.scoring_settings)
+            ? (league.scoring_settings as Record<string, unknown>)
+            : {};
+        const rosteredPlayerIds = new Set<string>();
+        for (const roster of rosters) {
+          for (const playerId of stringArray(roster.players)) {
+            rosteredPlayerIds.add(playerId);
+          }
+        }
+        const normalizedPositions = [...new Set(
+          positions.map((position) => position.toUpperCase()),
+        )];
+        const candidateIds = selectAvailablePlayerIds({
+          playerMap,
+          rosteredPlayerIds,
+          positions: normalizedPositions,
+          limit: candidate_pool_size,
+        });
+        const comparisonIds = selectRosterComparisonIds({
+          playerMap,
+          players: stringArray(targetRoster.players),
+          starters: stringArray(targetRoster.starters),
+          reserve: stringArray(targetRoster.reserve),
+          taxi: stringArray(targetRoster.taxi),
+          positions: normalizedPositions,
+          limit: 25,
+        });
+        const response = buildPlayerGameLogs({
+          playerIds: [...candidateIds, ...comparisonIds],
+          playerMap,
+          seasonData,
+          season: requestedSeason,
+          throughWeek: through_week,
+          gameLogLimit: 5,
+          scoringSettings,
+          rosteredPlayerIds,
+        });
+        const ranked = rankWaiverPlayers(response.data);
+        const candidateSet = new Set(candidateIds);
+        const comparisonSet = new Set(comparisonIds);
+        const candidates = ranked
+          .filter((player) => candidateSet.has(player.player_id))
+          .slice(0, Math.min(candidate_limit, candidate_pool_size))
+          .map((player, index) => ({ rank: index + 1, ...player }));
+        const rosterComparisons = ranked
+          .filter((player) => comparisonSet.has(player.player_id))
+          .sort(
+            (left, right) =>
+              left.waiver_score - right.waiver_score ||
+              left.full_name.localeCompare(right.full_name),
+          )
+          .slice(0, comparison_limit)
+          .map((player, index) => ({ rank: index + 1, ...player }));
+        const data = {
+          candidates,
+          roster_comparisons: rosterComparisons,
+          unresolved: response.unresolved,
+          unsupported_scoring_keys: response.unsupported_scoring_keys,
+          methodology: {
+            scope:
+              "Scores are relative to the free-agent and roster-comparison players evaluated in this request.",
+            candidate_prefilter:
+              "Active unrostered players are prefiltered by Sleeper search_rank before nflverse statistical ranking.",
+            protected_roster_groups: ["starters", "reserve", "taxi"],
+            weights: WAIVER_SCORE_WEIGHTS,
+            limitations: [
+              "This is not a Dynasty market valuation or future projection.",
+              "Roster comparisons use production and usage only and are not automatic cut recommendations.",
+              "Players without a conservative nflverse mapping are reported as unresolved.",
+            ],
+          },
+          source: response.source,
+        };
+        return {
+          structuredContent: data,
+          content: [
+            {
+              type: "text" as const,
+              text: `Ranked ${candidates.length} waiver candidate(s) and returned ${rosterComparisons.length} roster comparison(s); ${response.unresolved.length} unresolved.`,
+            },
+          ],
+        };
       } catch (error) {
         return toolError(error);
       }
