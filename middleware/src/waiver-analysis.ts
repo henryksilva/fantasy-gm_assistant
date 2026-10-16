@@ -1,4 +1,7 @@
-import type { PlayerGameLogSummary } from "./player-game-logs.js";
+import type {
+  PlayerGameLogSummary,
+  PlayerWeekStatus,
+} from "./player-game-logs.js";
 import type { SleeperPlayer, SleeperPlayerMap } from "./types.js";
 
 export interface WaiverCandidateSelectionInput {
@@ -29,6 +32,9 @@ export interface RankedWaiverPlayer {
   last_5_average: number | null;
   recent_snap_pct: number | null;
   recent_opportunities: number;
+  week_status: PlayerWeekStatus;
+  week_opponent: string | null;
+  is_on_bye: boolean;
   waiver_score: number;
   score_components: {
     production: number;
@@ -129,6 +135,9 @@ export function rankWaiverPlayers(
         last_5_average: entry.summary.averages.last_5,
         recent_snap_pct: entry.recentSnapPct,
         recent_opportunities: entry.recentOpportunities,
+        week_status: entry.summary.week_context.status,
+        week_opponent: entry.summary.week_context.opponent,
+        is_on_bye: entry.summary.week_context.status === "bye",
         waiver_score: waiverScore,
         score_components: {
           production,
@@ -193,6 +202,9 @@ function createRawMetrics(summary: PlayerGameLogSummary): RawRankingMetrics {
 
 function buildSignals(entry: RawRankingMetrics): string[] {
   const signals: string[] = [];
+  if (entry.summary.week_context.status === "bye") {
+    signals.push("The player's NFL team is on bye in the requested week.");
+  }
   const season = entry.summary.averages.season;
   const last3 = entry.summary.averages.last_3;
   if (season !== null && last3 !== null && last3 >= season + 1) {

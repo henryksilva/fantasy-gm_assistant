@@ -1,5 +1,6 @@
 import type {
   NflverseSeasonData,
+  WeeklyTeamSchedule,
   WeeklyPlayerStat,
   WeeklySnapCount,
 } from "./nflverse-client.js";
@@ -24,6 +25,7 @@ export interface PlayerGameLogResult extends Record<string, unknown> {
     provider: "nflverse";
     stats_url: string;
     snaps_url: string;
+    schedule_url: string;
   };
 }
 
@@ -41,7 +43,23 @@ export interface PlayerGameLogSummary {
     last_3: number | null;
     last_5: number | null;
   };
+  week_context: PlayerWeekContext;
+  bye_weeks: number[];
   game_logs: PlayerWeekLog[];
+}
+
+export type PlayerWeekStatus =
+  | "played"
+  | "scheduled_no_player_stats"
+  | "bye"
+  | "data_unavailable"
+  | "unknown_team";
+
+export interface PlayerWeekContext {
+  week: number;
+  team: string | null;
+  opponent: string | null;
+  status: PlayerWeekStatus;
 }
 
 export interface PlayerWeekLog {
@@ -190,6 +208,12 @@ export function buildPlayerGameLogs(
   const snaps = input.seasonData.snaps.filter(
     (line) => line.season === input.season && line.week <= input.throughWeek,
   );
+  const schedules = (input.seasonData.schedules ?? []).filter(
+    (line) =>
+      line.season === input.season &&
+      line.week <= input.throughWeek &&
+      (line.game_type === null || line.game_type === "REG"),
+  );
   const unsupportedScoringKeys = findUnsupportedScoringKeys(input.scoringSettings);
   const data: PlayerGameLogSummary[] = [];
   const unresolved: Array<{ player_id: string; reason: string }> = [];
@@ -232,12 +256,22 @@ export function buildPlayerGameLogs(
       return createWeekLog(requestedWeek, stat, snap, input.scoringSettings, player);
     });
     const points = allLogs.map((log) => log.fantasy_points);
+    const team =
+      stringValue(player.team) ??
+      [...allLogs].reverse().find((log) => log.team !== null)?.team ??
+      null;
+    const weekContext = buildWeekContext(
+      input.throughWeek,
+      team,
+      schedules,
+      allLogs,
+    );
 
     data.push({
       player_id: playerId,
       full_name: playerFullName(player),
       position: stringValue(player.position),
-      team: stringValue(player.team),
+      team,
       currently_available: !input.rosteredPlayerIds.has(playerId),
       mapping_method: mapping.method,
       source_player_id: mapping.sourcePlayerId,
@@ -247,6 +281,8 @@ export function buildPlayerGameLogs(
         last_3: average(points.slice(-3)),
         last_5: average(points.slice(-5)),
       },
+      week_context: weekContext,
+      bye_weeks: findByeWeeks(team, schedules, input.throughWeek),
       game_logs: allLogs.slice(-input.gameLogLimit).reverse(),
     });
   }
@@ -259,8 +295,78 @@ export function buildPlayerGameLogs(
       provider: "nflverse",
       stats_url: `https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${input.season}.csv`,
       snaps_url: `https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_${input.season}.csv`,
+      schedule_url: "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv",
     },
   };
+}
+
+function buildWeekContext(
+  week: number,
+  team: string | null,
+  schedules: WeeklyTeamSchedule[],
+  logs: PlayerWeekLog[],
+): PlayerWeekContext {
+  if (!team) {
+    return { week, team: null, opponent: null, status: "unknown_team" };
+  }
+  const weekSchedules = schedules.filter((game) => game.week === week);
+  if (weekSchedules.length === 0) {
+    return { week, team, opponent: null, status: "data_unavailable" };
+  }
+  const game = weekSchedules.find((entry) => teamIsPlaying(entry, team));
+  if (!game) {
+    return { week, team, opponent: null, status: "bye" };
+  }
+  const opponent =
+    normalizeTeam(game.home_team) === normalizeTeam(team)
+      ? game.away_team
+      : game.home_team;
+  return {
+    week,
+    team,
+    opponent,
+    status: logs.some((log) => log.week === week)
+      ? "played"
+      : "scheduled_no_player_stats",
+  };
+}
+
+function findByeWeeks(
+  team: string | null,
+  schedules: WeeklyTeamSchedule[],
+  throughWeek: number,
+): number[] {
+  if (!team) return [];
+  const scheduledWeeks = new Set(schedules.map((game) => game.week));
+  const teamWeeks = new Set(
+    schedules
+      .filter((game) => teamIsPlaying(game, team))
+      .map((game) => game.week),
+  );
+  return [...scheduledWeeks]
+    .filter((week) => week <= throughWeek && !teamWeeks.has(week))
+    .sort((left, right) => left - right);
+}
+
+function teamIsPlaying(game: WeeklyTeamSchedule, team: string): boolean {
+  const normalized = normalizeTeam(team);
+  return (
+    normalizeTeam(game.home_team) === normalized ||
+    normalizeTeam(game.away_team) === normalized
+  );
+}
+
+function normalizeTeam(team: string): string {
+  const normalized = team.toUpperCase();
+  const aliases: Record<string, string> = {
+    JAC: "JAX",
+    LA: "LAR",
+    OAK: "LV",
+    SD: "LAC",
+    STL: "LAR",
+    WSH: "WAS",
+  };
+  return aliases[normalized] ?? normalized;
 }
 
 function mapPlayer(

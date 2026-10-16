@@ -5,6 +5,7 @@ import {
   NflverseSeasonCache,
   parseCsv,
   parsePlayerStatsCsv,
+  parseSchedulesCsv,
   parseSnapCountsCsv,
 } from "../src/nflverse-client.js";
 
@@ -37,6 +38,25 @@ test("parses snap counts with nullable percentages", () => {
   assert.equal(rows[0]?.offense_snaps, 48);
   assert.equal(rows[0]?.offense_pct, 0.75);
   assert.equal(rows[0]?.special_teams_snaps, 2);
+});
+
+test("parses and filters the NFL schedule by season", () => {
+  const rows = parseSchedulesCsv(
+    "game_id,season,game_type,week,away_team,home_team\n" +
+      "2026_06_BAL_CLE,2026,REG,6,BAL,CLE\n" +
+      "2025_06_BAL_CLE,2025,REG,6,BAL,CLE\n",
+    "2026",
+  );
+  assert.deepEqual(rows, [
+    {
+      game_id: "2026_06_BAL_CLE",
+      season: "2026",
+      game_type: "REG",
+      week: 6,
+      away_team: "BAL",
+      home_team: "CLE",
+    },
+  ]);
 });
 
 test("caches one in-flight nflverse season load", async () => {

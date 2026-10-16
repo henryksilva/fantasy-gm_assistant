@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "fantasy-assist-gm-sleeper",
-  "version": "0.5.0",
-  "description": "Consulta ligas, rosters, waivers, drafts e game logs da NFL, com ranking transparente de free agents e respostas compactas somente leitura.",
+  "version": "0.6.0",
+  "description": "Consulta ligas, rosters, waivers, drafts, game logs e semanas de BYE, com ranking transparente de free agents e respostas compactas somente leitura.",
   "author": {
     "name": "Henryk Manente"
   },
@@ -15,7 +15,7 @@
       "interface": {
         "displayName": "Fantasy Assist GM - Sleeper",
         "shortDescription": "Ligas e rosters do Sleeper",
-        "longDescription": "Assistente somente leitura para consultar ligas NFL, relacionar membros e rosters, analisar matchups e transações, acompanhar drafts, picks negociadas, playoffs, jogadores em alta, disponibilidade no waiver, médias históricas, tendências de utilização e rankings transparentes de free agents.",
+        "longDescription": "Assistente somente leitura para consultar ligas NFL, relacionar membros e rosters, analisar matchups e transações, acompanhar drafts, picks negociadas, playoffs, jogadores em alta, disponibilidade no waiver, semanas de BYE, médias históricas, tendências de utilização e rankings transparentes de free agents.",
         "developerName": "Henryk Manente",
         "category": "Lifestyle",
         "capabilities": ["Read"],

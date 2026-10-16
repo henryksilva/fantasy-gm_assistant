@@ -254,6 +254,16 @@ const dependencies: McpDependencies = {
             special_teams_pct: 0.1,
           },
         ],
+        schedules: [
+          {
+            game_id: "2026_06_TST_EXM",
+            season: "2026",
+            game_type: "REG",
+            week: 6,
+            away_team: "TST",
+            home_team: "EXM",
+          },
+        ],
       };
     },
   },
@@ -414,6 +424,7 @@ test("returns roster-independent game logs with league scoring and snaps", async
       data: Array<{
         currently_available: boolean;
         averages: { season: number };
+        week_context: { status: string; opponent: string };
         game_logs: Array<{ fantasy_points: number; offense_snaps: number }>;
       }>;
       unresolved: unknown[];
@@ -422,6 +433,12 @@ test("returns roster-independent game logs with league scoring and snaps", async
     assert.equal(result.data.length, 1);
     assert.equal(result.data[0]?.currently_available, true);
     assert.equal(result.data[0]?.averages.season, 15);
+    assert.deepEqual(result.data[0]?.week_context, {
+      week: 6,
+      team: "TST",
+      opponent: "EXM",
+      status: "played",
+    });
     assert.equal(result.data[0]?.game_logs[0]?.fantasy_points, 15);
     assert.equal(result.data[0]?.game_logs[0]?.offense_snaps, 48);
     assert.deepEqual(result.unresolved, []);

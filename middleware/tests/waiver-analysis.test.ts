@@ -101,6 +101,13 @@ function summary(
     source_player_id: playerId,
     games_played: 6,
     averages: { season, last_3: last3, last_5: last5 },
+    week_context: {
+      week: 6,
+      team: "TST",
+      opponent: "OPP",
+      status: "played",
+    },
+    bye_weeks: [],
     game_logs: [1, 2, 3].map((week) => ({
       week,
       game_id: `game-${week}`,

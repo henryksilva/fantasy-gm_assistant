@@ -264,6 +264,19 @@ const playerGameLogSummarySchema = z.object({
     last_3: z.number().nullable(),
     last_5: z.number().nullable(),
   }),
+  week_context: z.object({
+    week: z.number(),
+    team: z.string().nullable(),
+    opponent: z.string().nullable(),
+    status: z.enum([
+      "played",
+      "scheduled_no_player_stats",
+      "bye",
+      "data_unavailable",
+      "unknown_team",
+    ]),
+  }),
+  bye_weeks: z.array(z.number()),
   game_logs: z.array(playerWeekLogSchema),
 });
 
@@ -284,6 +297,15 @@ const rankedWaiverPlayerSchema = z.object({
   last_5_average: z.number().nullable(),
   recent_snap_pct: z.number().nullable(),
   recent_opportunities: z.number(),
+  week_status: z.enum([
+    "played",
+    "scheduled_no_player_stats",
+    "bye",
+    "data_unavailable",
+    "unknown_team",
+  ]),
+  week_opponent: z.string().nullable(),
+  is_on_bye: z.boolean(),
   waiver_score: z.number(),
   score_components: z.object({
     production: z.number(),
@@ -388,10 +410,10 @@ export function createSleeperMcpServer(
   dependencies: McpDependencies = defaultDependencies,
 ): McpServer {
   const server = new McpServer(
-    { name: "fantasy-assist-gm-sleeper", version: "1.3.0" },
+    { name: "fantasy-assist-gm-sleeper", version: "1.4.0" },
     {
       instructions:
-        "Read-only Sleeper NFL tools with nflverse weekly player stats. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs before requesting game logs. Use analyze_waiver_candidates for a transparent relative ranking based on league scoring, recent production, usage, and reliability. Waiver analysis is not a market valuation or future projection. Never infer player identities or trade values.",
+        "Read-only Sleeper NFL tools with nflverse weekly player stats and team schedules. Discover the current season with get_nfl_state, resolve usernames, then use stable IDs. Match roster_id across members, matchups, transactions, drafts, picks, and brackets. Resolve player IDs before requesting game logs. Use week_context to distinguish a team bye from a scheduled game without player stats. Use analyze_waiver_candidates for a transparent relative ranking based on league scoring, recent production, usage, and reliability. Waiver analysis is not a market valuation or future projection. Never infer player identities or trade values.",
       maxToolInputElements: 120,
     },
   );
@@ -862,7 +884,7 @@ export function createSleeperMcpServer(
     {
       title: "Rank waiver candidates and compare roster depth",
       description:
-        "Build a compact waiver report without external valuations. It derives current free agents, calculates league-scored season/last-3/last-5 production, recent usage and snaps, ranks candidates relative to the evaluated pool, and compares them with non-starting roster players. Starters, reserve, and taxi players are protected from the comparison set. The score is transparent and request-relative; it is not a Dynasty market value, projection, or automatic cut recommendation.",
+        "Build a compact waiver report without external valuations. It derives current free agents, calculates league-scored season/last-3/last-5 production, recent usage and snaps, identifies requested-week team byes from the NFL schedule, ranks candidates relative to the evaluated pool, and compares them with non-starting roster players. Starters, reserve, and taxi players are protected from the comparison set. The score is transparent and request-relative; it is not a Dynasty market value, projection, or automatic cut recommendation.",
       inputSchema: {
         league_id: numericId.describe("Numeric Sleeper league_id."),
         owner_id: numericId.describe(
@@ -926,6 +948,7 @@ export function createSleeperMcpServer(
           provider: z.literal("nflverse"),
           stats_url: z.string(),
           snaps_url: z.string(),
+          schedule_url: z.string(),
         }),
       },
       annotations: readOnlyAnnotations,
@@ -1054,7 +1077,7 @@ export function createSleeperMcpServer(
     {
       title: "Get player game logs and league scoring",
       description:
-        "Get roster-independent weekly NFL game logs for up to 25 Sleeper player_ids, calculate fantasy points with the league scoring settings, and return season, last-3, and last-5 averages plus usage and snap trends. Use after list_available_players or resolve_sleeper_players. Mapping is conservative and unresolved IDs are reported instead of guessed. nflverse data can lag completed games and unsupported nonzero scoring rules are listed explicitly.",
+        "Get roster-independent weekly NFL game logs for up to 25 Sleeper player_ids, calculate fantasy points with the league scoring settings, and return season, last-3, and last-5 averages plus usage, snap trends, bye weeks, and requested-week team context. Use after list_available_players or resolve_sleeper_players. A scheduled team game without a player row is distinguished from a bye. Mapping is conservative and unresolved IDs are reported instead of guessed. nflverse data can lag completed games and unsupported nonzero scoring rules are listed explicitly.",
       inputSchema: {
         league_id: numericId.describe(
           "Numeric Sleeper league_id whose scoring settings and current rosters should be used.",
@@ -1084,6 +1107,7 @@ export function createSleeperMcpServer(
           provider: z.literal("nflverse"),
           stats_url: z.string(),
           snaps_url: z.string(),
+          schedule_url: z.string(),
         }),
       },
       annotations: readOnlyAnnotations,

@@ -86,13 +86,20 @@ global entre regiões. Esse é um compromisso consciente do MVP para evitar
 banco, KV ou outro serviço externo.
 
 `get_player_game_logs` carrega os arquivos semanais `stats_player` e
-`snap_counts` do nflverse por temporada e os mantém em memória por 6 horas. A
+`snap_counts`, além do calendário `schedules/games.csv` do nflverse, e os mantém
+em memória por 6 horas. A
 ferramenta aceita até 25 `player_ids`, calcula a pontuação com
 `scoring_settings` da liga, retorna médias da temporada, dos últimos três e dos
 últimos cinco jogos e inclui utilização ofensiva ou IDP e snap counts. O
 mapeamento é conservador: IDs sem correspondência única são retornados em
 `unresolved`, e regras não calculáveis aparecem em
 `unsupported_scoring_keys`.
+
+O calendário permite identificar o contexto da semana solicitada como
+`played`, `scheduled_no_player_stats`, `bye`, `data_unavailable` ou
+`unknown_team`. Assim, uma ausência de estatística não é mais tratada
+automaticamente como BYE. A resposta também inclui `bye_weeks` para o time atual
+do jogador.
 
 Exemplo de argumentos MCP:
 
@@ -210,7 +217,8 @@ curl --fail-with-body --silent --show-error \
 - A disponibilidade de jogadores é derivada dos rosters e ordenada pelo
   `search_rank` do Sleeper; ela não é uma recomendação de valor.
 - Game logs e snaps vêm do nflverse e podem ter atraso após o encerramento das
-  partidas. A resposta identifica a fonte e qualquer regra de pontuação sem
-  cobertura.
+  partidas. O calendário do mesmo provedor é usado para diferenciar BYE de jogo
+  agendado sem estatística. A resposta identifica as fontes e qualquer regra de
+  pontuação sem cobertura.
 - A primeira chamada de cada instância pode ser mais lenta por precisar carregar
   e interpretar o mapa completo e os arquivos da temporada.

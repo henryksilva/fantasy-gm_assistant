@@ -12,7 +12,8 @@ escopo básico, a versão estendida cobre matchups, transactions, picks
 negociadas, drafts, playoffs, trending players e disponibilidade derivada de
 waivers. A ferramenta de game logs usa dados semanais do nflverse para calcular
 pontuação pelas regras da liga e tendências de utilização sem depender de o
-jogador ter pertencido a um roster. O pacote combinado de plugin está em
+jogador ter pertencido a um roster. O calendário semanal do mesmo provedor
+diferencia BYE de jogo agendado sem estatística. O pacote combinado de plugin está em
 `plugin/`:
 
 ```text
@@ -269,7 +270,7 @@ No Inspector, conecte a
   Sleeper varia esses objetos entre ligas e temporadas.
 - O middleware mantém o mapa de jogadores em memória por instância por 24 horas.
 - Estatísticas semanais e snap counts do nflverse ficam em memória por instância
-  por 6 horas.
+  por 6 horas, junto com o calendário usado para identificar semanas de BYE.
 - Não há persistência, cache distribuído nem valuations externas.
 - O mapa completo de jogadores não é exposto à GPT Action; use o resolver compacto.
 - Os schemas de GPT Actions continuam limitados ao MVP legado; os recursos
@@ -281,7 +282,8 @@ No Inspector, conecte a
   deve ser apresentada como recomendação automática de corte.
 - `get_player_game_logs` limita a consulta a 25 jogadores, retorna no máximo oito
   game logs por jogador e informa regras de pontuação não suportadas em vez de
-  apresentar precisão falsa.
+  apresentar precisão falsa. `week_context` diferencia BYE, jogo agendado sem
+  estatística e indisponibilidade dos dados.
 - O plugin não oferece projections, valuations externas nem operações de escrita.
 - O Sleeper recomenda manter o uso abaixo de 1.000 chamadas por minuto.
 - A documentação do Sleeper informa uso gratuito para fins não comerciais; uso

@@ -2,6 +2,8 @@ export const NFLVERSE_STATS_URL =
   "https://github.com/nflverse/nflverse-data/releases/download/stats_player";
 export const NFLVERSE_SNAPS_URL =
   "https://github.com/nflverse/nflverse-data/releases/download/snap_counts";
+export const NFLVERSE_SCHEDULE_URL =
+  "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv";
 export const NFLVERSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 const UPSTREAM_TIMEOUT_MS = 20_000;
@@ -35,9 +37,19 @@ export interface WeeklySnapCount {
   special_teams_pct: number | null;
 }
 
+export interface WeeklyTeamSchedule {
+  season: string;
+  week: number;
+  game_type: string | null;
+  game_id: string | null;
+  home_team: string;
+  away_team: string;
+}
+
 export interface NflverseSeasonData {
   stats: WeeklyPlayerStat[];
   snaps: WeeklySnapCount[];
+  schedules?: WeeklyTeamSchedule[];
 }
 
 export interface NflverseSeasonProvider {
@@ -158,14 +170,16 @@ export async function fetchNflverseSeason(
 ): Promise<NflverseSeasonData> {
   const statsUrl = `${NFLVERSE_STATS_URL}/stats_player_week_${season}.csv`;
   const snapsUrl = `${NFLVERSE_SNAPS_URL}/snap_counts_${season}.csv`;
-  const [statsCsv, snapsCsv] = await Promise.all([
+  const [statsCsv, snapsCsv, schedulesCsv] = await Promise.all([
     fetchCsv(statsUrl, "player stats"),
     fetchCsv(snapsUrl, "snap counts"),
+    fetchCsv(NFLVERSE_SCHEDULE_URL, "schedule"),
   ]);
 
   return {
     stats: parsePlayerStatsCsv(statsCsv),
     snaps: parseSnapCountsCsv(snapsCsv),
+    schedules: parseSchedulesCsv(schedulesCsv, season),
   };
 }
 
@@ -237,6 +251,37 @@ export function parseSnapCountsCsv(csv: string): WeeklySnapCount[] {
         defense_pct: numberValue(row.defense_pct),
         special_teams_snaps: numberValue(row.st_snaps),
         special_teams_pct: numberValue(row.st_pct),
+      },
+    ];
+  });
+}
+
+export function parseSchedulesCsv(
+  csv: string,
+  requestedSeason?: string,
+): WeeklyTeamSchedule[] {
+  return csvRecords(csv).flatMap((row) => {
+    const season = textValue(row.season);
+    const week = integerValue(row.week);
+    const homeTeam = textValue(row.home_team);
+    const awayTeam = textValue(row.away_team);
+    if (
+      !season ||
+      week === null ||
+      !homeTeam ||
+      !awayTeam ||
+      (requestedSeason && season !== requestedSeason)
+    ) {
+      return [];
+    }
+    return [
+      {
+        season,
+        week,
+        game_type: textValue(row.game_type),
+        game_id: textValue(row.game_id),
+        home_team: homeTeam,
+        away_team: awayTeam,
       },
     ];
   });

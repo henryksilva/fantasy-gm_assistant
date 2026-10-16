@@ -44,6 +44,14 @@ The default account is:
   Pass the league, season, and explicit current week. Compare the returned
   season, last-3, and last-5 averages with carries, targets, tackles, and snap
   trends. The data is roster-independent, so it also covers current free agents.
+- Read `week_context` before interpreting a missing weekly row. `bye` means the
+  player's current NFL team has no scheduled game; `scheduled_no_player_stats`
+  means the team is scheduled but the player has no row yet; `data_unavailable`
+  means the schedule cannot establish the status. Never infer a bye from a
+  missing game log alone.
+- Use `bye_weeks` when the user asks about past or current team byes. Treat it as
+  current-team schedule context rather than proof of the player's historical
+  roster affiliation after a midseason team change.
 - Treat `unsupported_scoring_keys` as a material limitation. Never describe a
   calculated score as complete when this list is non-empty. Report `unresolved`
   mappings instead of associating players by inference.
@@ -66,8 +74,9 @@ The available integration covers current NFL state, Sleeper users, leagues,
 members, rosters, weekly matchups and transactions, traded picks, drafts and
 draft selections, playoff brackets, trending players, derived waiver
 availability, player identity/basic status, roster-independent weekly game
-logs, league-scored averages, usage metrics, snap counts, request-relative
-waiver rankings, and protected roster-depth comparisons.
+logs, league-scored averages, usage metrics, snap counts, requested-week BYE
+context, request-relative waiver rankings, and protected roster-depth
+comparisons.
 
 It does not provide market valuations, projections, detailed news, or write
 operations such as proposing trades, changing lineups, or submitting waiver
