@@ -294,3 +294,7 @@ No Inspector, conecte a
 - [Documentação oficial da API Sleeper](https://docs.sleeper.com/)
 - [Dados automatizados do nflverse](https://github.com/nflverse/nflverse-data)
 - [OpenAI Platform](https://platform.openai.com/)
+
+## Referências de Dynasty
+
+As tabelas históricas de valores e seus metadados estão em [references/](references/README.md).
